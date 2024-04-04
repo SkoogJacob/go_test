@@ -6,8 +6,9 @@ import (
 )
 
 func main() {
-	srv := server{}
-	mux := srv.routes()
+	s := server{}
+	s.Session = getSession()
+	mux := s.routes()
 	log.Print("Starting server...")
 	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
