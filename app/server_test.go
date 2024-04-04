@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -36,4 +39,32 @@ func routeExist(testRoute, testMethod string, chiRoutes chi.Routes) bool {
 		return nil
 	})
 	return found
+}
+
+func TestAppHome(t *testing.T) {
+	pathToTemplates = "../templates/"
+	req, _ := http.NewRequest("GET", "/", nil)
+	req = addContextAndSessionToRequest(req, &s)
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(s.Home)
+
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("TestAppHome returned wrong status code. Expected %d, got %d", http.StatusOK, rr.Code)
+	}
+	body, _ := io.ReadAll(rr.Body)
+	if !strings.Contains(string(body), `From Session:`) {
+		t.Error("Did not find expected content in HTML")
+	}
+}
+
+func getContext(req *http.Request) context.Context {
+	ctx := context.WithValue(req.Context(), contextUserKey, "unknown")
+	return ctx
+}
+
+func addContextAndSessionToRequest(req *http.Request, s *server) *http.Request {
+	req = req.WithContext(getContext(req))
+	c, _ := s.Session.Load(req.Context(), req.Header.Get("X-Session"))
+	return req.WithContext(c)
 }
