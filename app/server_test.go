@@ -42,19 +42,33 @@ func routeExist(testRoute, testMethod string, chiRoutes chi.Routes) bool {
 }
 
 func TestAppHome(t *testing.T) {
-	pathToTemplates = "../templates/"
-	req, _ := http.NewRequest("GET", "/", nil)
-	req = addContextAndSessionToRequest(req, &s)
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(s.Home)
-
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Errorf("TestAppHome returned wrong status code. Expected %d, got %d", http.StatusOK, rr.Code)
+	tests := []struct {
+		name         string
+		putInSession string
+		expectedHTML string
+	}{
+		{"first visit", "", "From Session:"},
+		{"second visit", "hello testing people", "From Session: hello testing people"},
 	}
-	body, _ := io.ReadAll(rr.Body)
-	if !strings.Contains(string(body), `From Session:`) {
-		t.Error("Did not find expected content in HTML")
+	for _, test := range tests {
+		req, _ := http.NewRequest("GET", "/", nil)
+		req = addContextAndSessionToRequest(req, &s)
+		_ = s.Session.Destroy(req.Context())
+		if test.putInSession != "" {
+			s.Session.Put(req.Context(), "test", test.putInSession)
+		}
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(s.Home)
+
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Errorf("TestAppHome returned wrong status code. Expected %d, got %d", http.StatusOK, rr.Code)
+		}
+		body, _ := io.ReadAll(rr.Body)
+		if !strings.Contains(string(body), test.expectedHTML) {
+			t.Error("Did not find expected content in HTML")
+		}
 	}
 }
 
