@@ -20,6 +20,10 @@
                 <hr>
                 <small>Your ip: {{.IP}} </small>
                 <small>From Session: {{index .Data "test"}}</small>
+                {{ if index .Data "error" }}
+                <hr>
+                    <small>{{index .Data "error"}}</small>
+                {{ end }}
             </div>
         </div>
     </div>

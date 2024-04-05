@@ -1,9 +1,10 @@
 package main
 
 import (
-	"database/sql"
 	"github.com/alexedwards/scs/v2"
+	"log"
 	"net/http"
+	"web_test/pkg/db"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -11,7 +12,7 @@ import (
 
 type server struct {
 	Session *scs.SessionManager
-	DB      *sql.DB
+	DB      db.PostgresConn
 	DSN     string
 }
 
@@ -28,4 +29,11 @@ func (s *server) routes() http.Handler {
 	filSrv := http.FileServer(http.Dir("./static/"))
 	mux.Handle("/static/*", http.StripPrefix("/static", filSrv))
 	return mux
+}
+
+func (s *server) closeDB() {
+	err := s.DB.DB.Close()
+	if err != nil {
+		log.Fatalf("Unable to close DB connection: %v\n", err)
+	}
 }

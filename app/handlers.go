@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -23,6 +22,25 @@ func (s *server) Home(w http.ResponseWriter, r *http.Request) {
 		td["test"] = msg
 	} else {
 		s.Session.Put(r.Context(), "test", "hit this page at "+time.Now().UTC().String())
+	}
+	if s.Session.Exists(r.Context(), "login_error") {
+		msg := s.Session.GetString(r.Context(), "login_error")
+		td["error"] = msg
+	}
+	_ = s.render(w, r, "home.page.gohtml", &TemplateData{Data: td})
+}
+
+func (s *server) Profile(w http.ResponseWriter, r *http.Request) {
+	var td = make(map[string]any)
+	if s.Session.Exists(r.Context(), "flash") {
+		msg := s.Session.GetString(r.Context(), "flash")
+		td["test"] = msg
+	} else {
+		_ = s.Session.RenewToken(r.Context())
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+	if s.Session.Exists(r.Context(), "error") {
+		s.Session.Remove(r.Context(), "error")
 	}
 	_ = s.render(w, r, "home.page.gohtml", &TemplateData{Data: td})
 }
@@ -50,13 +68,25 @@ func (s *server) Login(w http.ResponseWriter, r *http.Request) {
 	form := NewForm(r.PostForm)
 	form.Required("email", "password")
 	if !form.Valid() {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintln(w, "Errors in submitted form:")
-		for k, v := range form.Errors {
-			fmt.Fprintf(w, "%s: %v\n", k, v)
-		}
-	} else {
-		w.WriteHeader(200)
-		fmt.Fprintln(w, "Login form was formed correctly, bu no action is implemented")
+		s.Session.Put(r.Context(), "login_error", "Login information not submitted properly")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
 	}
+	email := r.Form.Get("email")
+	password := r.Form.Get("password")
+	user, err := s.DB.GetUserByEmail(email)
+	if err != nil {
+		s.Session.Put(r.Context(), "login_error", "Invalid login")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	// Prevent fixation attacks
+	_ = s.Session.RenewToken(r.Context())
+
+	log.Println("From db: ", user)
+	log.Println(user, password)
+
+	s.Session.Put(r.Context(), "flash", "successfully logged in")
+	http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
 }

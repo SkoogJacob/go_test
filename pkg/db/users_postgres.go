@@ -3,10 +3,10 @@ package db
 import (
 	"context"
 	"database/sql"
-	"webapp/pkg/data"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"time"
+	"web_test/pkg/data"
 )
 
 const dbTimeout = time.Second * 3
@@ -20,14 +20,20 @@ func (m *PostgresConn) AllUsers() ([]*data.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, is_admin, created_at, updated_at
+	query := `
+	select id, email, first_name, last_name, password, is_admin, created_at, updated_at
 	from users order by last_name`
 
 	rows, err := m.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			log.Println("Error closing get all user query")
+		}
+	}(rows)
 
 	var users []*data.User
 
@@ -223,7 +229,7 @@ func (m *PostgresConn) InsertUserImage(i data.UserImage) (int, error) {
 	defer cancel()
 
 	var newID int
-	stmt := `insert into user_images (user_id, fileName, created_at, updated_at)
+	stmt := `insert into user_images (user_id, file_name, created_at, updated_at)
 		values ($1, $2, $3, $4) returning id`
 
 	err := m.DB.QueryRowContext(ctx, stmt,

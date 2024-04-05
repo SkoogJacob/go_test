@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"web_test/pkg/db"
 )
 
 func main() {
@@ -16,7 +17,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to db: %v\n", err)
 	}
-	s.DB = d
+	s.DB = db.PostgresConn{DB: d}
+	defer s.closeDB()
+
 	s.Session = getSession()
 	mux := s.routes()
 	log.Print("Starting server...")
