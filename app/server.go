@@ -4,6 +4,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"log"
 	"net/http"
+	"web_test/pkg/data"
 	"web_test/pkg/db"
 
 	"github.com/go-chi/chi/v5"
@@ -25,6 +26,7 @@ func (s *server) routes() http.Handler {
 
 	mux.Get("/", s.Home)
 	mux.Post("/login", s.Login)
+	mux.Get("/user/profile", s.Profile)
 
 	filSrv := http.FileServer(http.Dir("./static/"))
 	mux.Handle("/static/*", http.StripPrefix("/static", filSrv))
@@ -36,4 +38,12 @@ func (s *server) closeDB() {
 	if err != nil {
 		log.Fatalf("Unable to close DB connection: %v\n", err)
 	}
+}
+
+func (s *server) authenticateUser(r *http.Request, user *data.User, password string) bool {
+	if valid, err := user.PasswordMatches(password); err != nil || !valid {
+		return false
+	}
+	s.Session.Put(r.Context(), "user", user)
+	return true
 }

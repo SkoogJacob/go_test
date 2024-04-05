@@ -6,46 +6,45 @@ import (
 	"net/http"
 	"path"
 	"time"
+	"web_test/pkg/data"
 )
 
 var pathToTemplates = "./templates/"
 
 type TemplateData struct {
-	IP   string
-	Data map[string]any
+	IP    string
+	Data  map[string]any
+	Error string
+	Flash string
+	User  data.User
 }
 
 func (s *server) Home(w http.ResponseWriter, r *http.Request) {
-	var td = make(map[string]any)
+	var td = TemplateData{
+		Data: make(map[string]any),
+	}
 	if s.Session.Exists(r.Context(), "test") {
 		msg := s.Session.GetString(r.Context(), "test")
-		td["test"] = msg
+		td.Data["test"] = msg
 	} else {
 		s.Session.Put(r.Context(), "test", "hit this page at "+time.Now().UTC().String())
 	}
-	if s.Session.Exists(r.Context(), "login_error") {
-		msg := s.Session.GetString(r.Context(), "login_error")
-		td["error"] = msg
-	}
-	_ = s.render(w, r, "home.page.gohtml", &TemplateData{Data: td})
+	_ = s.render(w, r, "home.page.gohtml", &td)
 }
 
 func (s *server) Profile(w http.ResponseWriter, r *http.Request) {
-	var td = make(map[string]any)
-	if s.Session.Exists(r.Context(), "flash") {
-		msg := s.Session.GetString(r.Context(), "flash")
-		td["test"] = msg
-	} else {
+	var td = TemplateData{Data: make(map[string]any)}
+	if !s.Session.Exists(r.Context(), "user") {
 		_ = s.Session.RenewToken(r.Context())
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 	if s.Session.Exists(r.Context(), "error") {
 		s.Session.Remove(r.Context(), "error")
 	}
-	_ = s.render(w, r, "home.page.gohtml", &TemplateData{Data: td})
+	_ = s.render(w, r, "profile.page.gohtml", &td)
 }
 
-func (s *server) render(w http.ResponseWriter, r *http.Request, t string, data *TemplateData) error {
+func (s *server) render(w http.ResponseWriter, r *http.Request, t string, td *TemplateData) error {
 	parsed, err := template.ParseFiles(
 		path.Join(pathToTemplates, t),
 		path.Join(pathToTemplates, "base.layout.gohtml"),
@@ -54,11 +53,19 @@ func (s *server) render(w http.ResponseWriter, r *http.Request, t string, data *
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return err
 	}
-	data.IP = s.ipFromContext(r.Context())
-	err = parsed.Execute(w, data)
+	td.IP = s.ipFromContext(r.Context())
+	td.Error = s.Session.PopString(r.Context(), "error")
+	td.Flash = s.Session.PopString(r.Context(), "flash")
+	user := s.Session.Get(r.Context(), "user")
+	if user != nil {
+		td.User = user.(data.User)
+	}
+	err = parsed.Execute(w, td)
 	return err
 }
 
+// Login Not a page, handles a post request for login and then redirect to
+// the proper page based on whether the login was successful or not
 func (s *server) Login(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -68,7 +75,7 @@ func (s *server) Login(w http.ResponseWriter, r *http.Request) {
 	form := NewForm(r.PostForm)
 	form.Required("email", "password")
 	if !form.Valid() {
-		s.Session.Put(r.Context(), "login_error", "Login information not submitted properly")
+		s.Session.Put(r.Context(), "error", "Login information not submitted properly")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -76,7 +83,7 @@ func (s *server) Login(w http.ResponseWriter, r *http.Request) {
 	password := r.Form.Get("password")
 	user, err := s.DB.GetUserByEmail(email)
 	if err != nil {
-		s.Session.Put(r.Context(), "login_error", "Invalid login")
+		s.Session.Put(r.Context(), "error", "Invalid login")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -84,8 +91,11 @@ func (s *server) Login(w http.ResponseWriter, r *http.Request) {
 	// Prevent fixation attacks
 	_ = s.Session.RenewToken(r.Context())
 
-	log.Println("From db: ", user)
-	log.Println(user, password)
+	if !s.authenticateUser(r, user, password) {
+		s.Session.Put(r.Context(), "error", "Invalid login")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
 
 	s.Session.Put(r.Context(), "flash", "successfully logged in")
 	http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
