@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -41,7 +42,7 @@ func routeExist(testRoute, testMethod string, chiRoutes chi.Routes) bool {
 	return found
 }
 
-func TestAppHome(t *testing.T) {
+func TestServerHome(t *testing.T) {
 	tests := []struct {
 		name         string
 		putInSession string
@@ -72,13 +73,26 @@ func TestAppHome(t *testing.T) {
 	}
 }
 
-func getContext(req *http.Request) context.Context {
-	ctx := context.WithValue(req.Context(), contextUserKey, "unknown")
-	return ctx
+func TestServer_renderWithBadTemplate(t *testing.T) {
+	goodTemplatesPath := pathToTemplates
+	pathToTemplates = "./testdata/"
+	defer func() {
+		fmt.Println("restoring pathToTemplates")
+		pathToTemplates = goodTemplatesPath
+	}()
+	req, _ := http.NewRequest("GET", "/", nil)
+	req = addContextAndSessionToRequest(req, &s)
+	_ = s.Session.Destroy(req.Context())
+	rr := httptest.NewRecorder()
+	err := s.render(rr, req, "bad.page.gohtml", &TemplateData{})
+	if err == nil {
+		t.Error("Expected error on bad template but didn't get any")
+	}
 }
 
 func addContextAndSessionToRequest(req *http.Request, s *server) *http.Request {
-	req = req.WithContext(getContext(req))
+	ctx := context.WithValue(req.Context(), contextUserKey, "unknown")
+	req = req.WithContext(ctx)
 	c, _ := s.Session.Load(req.Context(), req.Header.Get("X-Session"))
 	return req.WithContext(c)
 }

@@ -28,8 +28,10 @@ func (s *server) Home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) render(w http.ResponseWriter, r *http.Request, t string, data *TemplateData) error {
-	parsed, err := template.ParseFiles(path.Join(pathToTemplates, t),
-		path.Join(pathToTemplates, "base.layout.gohtml"))
+	parsed, err := template.ParseFiles(
+		path.Join(pathToTemplates, t),
+		path.Join(pathToTemplates, "base.layout.gohtml"),
+	)
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return err
