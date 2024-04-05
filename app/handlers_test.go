@@ -16,7 +16,6 @@ func Test_application_handlers(t *testing.T) {
 		{"404", "/fish", http.StatusNotFound},
 	}
 	routes := s.routes()
-	pathToTemplates = "../templates/"
 
 	ts := httptest.NewTLSServer(routes)
 	defer ts.Close()
