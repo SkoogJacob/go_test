@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"github.com/alexedwards/scs/v2"
 	"net/http"
 
@@ -10,6 +11,8 @@ import (
 
 type server struct {
 	Session *scs.SessionManager
+	DB      *sql.DB
+	DSN     string
 }
 
 func (s *server) routes() http.Handler {
