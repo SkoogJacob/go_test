@@ -34,13 +34,6 @@ func (s *server) Home(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) Profile(w http.ResponseWriter, r *http.Request) {
 	var td = TemplateData{Data: make(map[string]any)}
-	if !s.Session.Exists(r.Context(), "user") {
-		_ = s.Session.RenewToken(r.Context())
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-	}
-	if s.Session.Exists(r.Context(), "error") {
-		s.Session.Remove(r.Context(), "error")
-	}
 	_ = s.render(w, r, "profile.page.gohtml", &td)
 }
 

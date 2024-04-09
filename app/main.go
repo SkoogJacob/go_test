@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 	"web_test/pkg/data"
-	"web_test/pkg/db"
+	"web_test/pkg/repository/dbrepo"
 )
 
 func main() {
@@ -21,7 +21,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to db: %v\n", err)
 	}
-	s.DB = db.PostgresConn{DB: d}
+	s.DB = &dbrepo.PostgresDBRepo{DB: d}
 	defer s.closeDB()
 
 	s.Session = getSession()

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"web_test/pkg/data"
 )
 
 func Test_server_add_ip_to(t *testing.T) {
@@ -59,5 +60,34 @@ func Test_server_ip_from_context(t *testing.T) {
 	val := s.ipFromContext(c)
 	if val != expected {
 		t.Errorf("%s did not match the expected value %s", val, expected)
+	}
+}
+
+func Test_server_auth(t *testing.T) {
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+
+	var tests = []struct {
+		name   string
+		isAuth bool
+	}{
+		{"logged in", true},
+		{"not logged in", false},
+	}
+
+	for _, test := range tests {
+		handlerToTest := s.auth(nextHandler)
+		req := httptest.NewRequest("GET", "http://testing", nil)
+		req = addContextAndSessionToRequest(req, &s)
+		if test.isAuth {
+			s.Session.Put(req.Context(), "user", data.User{ID: 1})
+		}
+		rr := httptest.NewRecorder()
+		handlerToTest.ServeHTTP(rr, req)
+		if test.isAuth && rr.Code != http.StatusOK {
+			t.Errorf("%s: expected status code of 200 but got %d", test.name, rr.Code)
+		} else if !test.isAuth && rr.Code != http.StatusSeeOther {
+			t.Errorf("%s: expected status code is %d but got %d",
+				test.name, http.StatusSeeOther, rr.Code)
+		}
 	}
 }

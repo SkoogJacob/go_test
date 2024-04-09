@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/alexedwards/scs/v2"
 	"log"
 	"net/http"
 	"web_test/pkg/data"
-	"web_test/pkg/db"
+	"web_test/pkg/repository"
+
+	"github.com/alexedwards/scs/v2"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -13,7 +14,7 @@ import (
 
 type server struct {
 	Session *scs.SessionManager
-	DB      db.PostgresConn
+	DB      repository.DatabaseRepo
 	DSN     string
 }
 
@@ -26,7 +27,11 @@ func (s *server) routes() http.Handler {
 
 	mux.Get("/", s.Home)
 	mux.Post("/login", s.Login)
-	mux.Get("/user/profile", s.Profile)
+
+	mux.Route("/user", func(r chi.Router) {
+		r.Use(s.auth)
+		r.Get("/profile", s.Profile)
+	})
 
 	filSrv := http.FileServer(http.Dir("./static/"))
 	mux.Handle("/static/*", http.StripPrefix("/static", filSrv))
@@ -34,7 +39,7 @@ func (s *server) routes() http.Handler {
 }
 
 func (s *server) closeDB() {
-	err := s.DB.DB.Close()
+	err := s.DB.Connection().Close()
 	if err != nil {
 		log.Fatalf("Unable to close DB connection: %v\n", err)
 	}
