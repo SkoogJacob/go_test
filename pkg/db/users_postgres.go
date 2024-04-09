@@ -3,10 +3,11 @@ package db
 import (
 	"context"
 	"database/sql"
-	"golang.org/x/crypto/bcrypt"
 	"log"
 	"time"
 	"web_test/pkg/data"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const dbTimeout = time.Second * 3
@@ -100,11 +101,11 @@ func (m *PostgresConn) GetUserByEmail(email string) (*data.User, error) {
 	defer cancel()
 
 	query := `
-		select 
-			id, email, first_name, last_name, password, is_admin, created_at, updated_at 
-		from 
-			users 
-		where 
+		select
+			id, email, first_name, last_name, password, is_admin, created_at, updated_at
+		from
+			users
+		where
 		    email = $1`
 
 	var user data.User

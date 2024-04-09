@@ -75,6 +75,7 @@ func (s *server) Login(w http.ResponseWriter, r *http.Request) {
 	form := NewForm(r.PostForm)
 	form.Required("email", "password")
 	if !form.Valid() {
+		log.Printf("Login form did not have all required information, got %v\n", form.Data)
 		s.Session.Put(r.Context(), "error", "Login information not submitted properly")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -83,6 +84,7 @@ func (s *server) Login(w http.ResponseWriter, r *http.Request) {
 	password := r.Form.Get("password")
 	user, err := s.DB.GetUserByEmail(email)
 	if err != nil {
+		log.Printf("Failed to authenticate user with error [%v\n]", err)
 		s.Session.Put(r.Context(), "error", "Invalid login")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
